@@ -6,3 +6,4 @@
 
 ##### The design is meant to be simple and clean and just allow interaction with the data. 
 
+##### The data is from the Gun violence archive, and was aggregated to state and county level. The incidents per 100k were created with the formula (Incident Count / Total Population) * 100,000 the population data was from the US Census. 
