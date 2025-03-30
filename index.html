@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>State and County Gun Violence Per 100,000</title>
+    <title>State and County Gun Violence Per 100,000 People</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css" />
@@ -111,17 +111,90 @@
             cursor: pointer;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
+
+
+        .description-container {
+            position: absolute;
+            top: 67%;
+            left: 10.8%;
+            transform: translate(-50%, -50%);
+            z-index: 1001;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+            max-width: 250px;
+            width: 80%;
+            display: none;
+        }
+
+        .description-container.active {
+            display: block;
+        }
+
+        .description-content h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.4em;
+        }
+
+        .description-content p {
+            line-height: 1.5;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .close-button {
+            background: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-family: Georgia, Helvetica, sans-serif;
+        }
+
+        .close-button:hover {
+            background: #d32f2f;
+        }
+
+        .show-description-button {
+            position: absolute;
+            bottom: 45px;
+            left: 50px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 12px;
+            font: 13px Georgia, Helvetica, sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 
 <body>
     <div id="map"></div>
     <div class="map-title">
-        <h1>Gun Violence Incidents Per 100,000</h1>
-        <p>United States - 2023 Data</p>
+        <h1>Gun Violence Incidents Per 100,000 People</h1>
+        <p>United States: 2014-2023</p>
     </div>
     <div class="legend"></div>
     <div class="reset-button" onclick="resetMap()">Reset View</div>
+    <div id="description-container" class="description-container active">
+        <div class="description-content">
+            <h2>About This Map</h2>
+            <p>This map displays gun violence incidents per 100,000 people across the United States, the data is from 2014-2023 data.
+                Click on states to see county-level data.</p>
+            <p>Data sources include the Gun Violence Archive and US Population estimates from Social Explorer.
+            </p>
+            <button id="close-description" class="close-button">Close</button>
+        </div>
+    </div>
+    <button id="show-description" class="show-description-button">About</button>
+
 
     <script>
         // Map initialization
@@ -134,9 +207,23 @@
             attributionControl: true
         }).setView(initialView.center, initialView.zoom);
 
+        document.getElementById('close-description').addEventListener('click', function () {
+            document.getElementById('description-container').classList.remove('active');
+        });
+
+        document.getElementById('show-description').addEventListener('click', function () {
+            document.getElementById('description-container').classList.add('active');
+        });
+
+        // Auto show description when page loads
+        // Comment out this line if you don't want it to show automatically
+        document.addEventListener('DOMContentLoaded', function () {
+            document.getElementById('description-container').classList.add('active');
+        });
+
         // Tile layer with attribution
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | © <a href="https://carto.com/attributions">CARTO</a> | Data from <a href="https://www.gunviolencearchive.org/">Gun Violence Archive</a> and <a href="https://www.socialexplorer.com/tables/C2020"> US Census data from Social Explorer</a>'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | © <a href="https://carto.com/attributions">CARTO</a> | Data from <a href="https://www.gunviolencearchive.org/">Gun Violence Archive</a> and <a href="https://www.socialexplorer.com/tables/C2020"> US Census data from Social Explorer</a> | Created By: Quinn Keefer'
         }).addTo(map);
 
         L.control.zoom({
