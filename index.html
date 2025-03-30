@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>State and County Gun Violence Per 100,000</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.0/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.0/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-ajax/2.1.0/leaflet.ajax.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/1.3.4/chroma.min.js"></script>
+
+    <style>
+        html,
+        body,
+        #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        .map-title {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 8px 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            font-family: Georgia, Helvetica, sans-serif;
+            max-width: 300px;
+        }
+
+        .map-title h1 {
+            margin: 0 0 5px 0;
+            font-size: 1.3em;
+            color: #333;
+        }
+
+        .map-title p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .leaflet-tooltip.county-tooltip {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #555;
+            border-radius: 5px;
+            padding: 8px;
+            font-family: Georgia, Helvetica, sans-serif;
+            font-size: 12px;
+            color: #333;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .info {
+            z-index: 1000;
+            position: absolute;
+            right: 5px;
+            top: 5px;
+            padding: 8px 12px;
+            font: 14px Georgia, Helvetica, sans-serif;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            min-width: 120px;
+        }
+
+        .info h4 {
+            margin: 0 0 5px 0;
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .legend {
+            z-index: 1000;
+            position: absolute;
+            right: 20px;
+            bottom: 30px;
+            padding: 10px 12px;
+            font: 12px Georgia, Helvetica, sans-serif;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+            line-height: 1.4;
+        }
+
+        .legend i {
+            width: 20px;
+            height: 16px;
+            display: inline-block;
+            margin-right: 6px;
+            opacity: 0.9;
+            border-radius: 3px;
+            vertical-align: middle;
+        }
+
+        .reset-button {
+            position: absolute;
+            bottom: 10px;
+            left: 50px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 6px 12px;
+            font: 13px Georgia, Helvetica, sans-serif;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="map"></div>
+    <div class="map-title">
+        <h1>Gun Violence Incidents Per 100,000</h1>
+        <p>United States - 2023 Data</p>
+    </div>
+    <div class="legend"></div>
+    <div class="reset-button" onclick="resetMap()">Reset View</div>
+
+    <script>
+        // Map initialization
+        var initialView = {
+            center: [37.8, -96],
+            zoom: 5
+        };
+        var map = L.map('map', {
+            zoomControl: false,
+            attributionControl: true
+        }).setView(initialView.center, initialView.zoom);
+
+        // Tile layer with attribution
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | © <a href="https://carto.com/attributions">CARTO</a> | Data from <a href="https://www.gunviolencearchive.org/">Gun Violence Archive</a> and <a href="https://www.socialexplorer.com/tables/C2020"> US Census data from Social Explorer</a>'
+        }).addTo(map);
+
+        L.control.zoom({
+            position: 'bottomleft'
+        }).addTo(map);
+
+        // Color configuration
+        var grades = [0, 1, 50, 100, 150, 200, 250, 300, 400, 500, 800];
+        var colors = chroma.scale('YlOrRd').colors(grades.length);
+
+        function getColor(d) {
+            for (var i = 0; i < grades.length - 1; i++) {
+                if (d >= grades[i] && d < grades[i + 1]) return colors[i];
+            }
+            return colors[colors.length - 1];
+        }
+
+        // Info control
+        var info = L.control();
+        info.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        info.update = function (props) {
+            this._div.innerHTML = '<h4>Incidents Per 100k</h4>' + (props ?
+                `<b>${props.STUSPS}</b><br>${Number(props['Incidents Per 100000']).toFixed(1)}` :
+                'Hover over a state');
+        };
+        info.addTo(map);
+
+        // Legend setup
+        var legendLabels = [];
+        for (var i = 0; i < grades.length - 1; i++) {
+            legendLabels.push(
+                `<i style="background:${colors[i]}"></i> ${grades[i]}–${grades[i+1]}`
+            );
+        }
+        legendLabels.push(`<i style="background:${colors[colors.length-1]}"></i> ${grades[grades.length-1]}+`);
+        document.querySelector('.legend').innerHTML = legendLabels.join('<br>');
+
+        // Layer styles
+        function stateStyle(feature) {
+            return {
+                weight: 2,
+                opacity: 1,
+                color: '#666',
+                fillOpacity: .95,
+                fillColor: getColor(feature.properties['Incidents Per 100000'])
+            };
+        }
+
+        function countyStyle(feature) {
+            return {
+                weight: 1,
+                opacity: 1,
+                color: '#333',
+                fillOpacity: 0.9,
+                fillColor: getColor(feature.properties['Incidents Per 100000'])
+            };
+        }
+
+        var stateLayer, countyLayer;
+
+        // County interactions
+        function highlightCounty(e) {
+            e.target.setStyle({
+                weight: 2,
+                color: '#000',
+                fillOpacity: 1
+            }).bringToFront();
+        }
+
+        function resetCountyHighlight(e) {
+            countyLayer.resetStyle(e.target);
+        }
+
+        function onEachCounty(feature, layer) {
+            layer.on({
+                mouseover: highlightCounty,
+                mouseout: resetCountyHighlight
+            });
+            if (feature.properties) {
+                layer.bindTooltip(
+                    `<strong>${feature.properties["County Name"]}</strong><br>
+                    ${Number(feature.properties["Incidents Per 100000"]).toFixed(1)} per 100k`, {
+                        className: 'county-tooltip',
+                        sticky: true
+                    }
+                );
+            }
+        }
+
+        // State interactions
+        function onEachState(feature, layer) {
+            layer.on({
+                mouseover: function (e) {
+                    e.target.setStyle({
+                        weight: 3,
+                        color: '#000',
+                        fillOpacity: 1
+                    }).bringToFront();
+                    info.update(e.target.feature.properties);
+                },
+                mouseout: function (e) {
+                    stateLayer.resetStyle(e.target);
+                    info.update();
+                },
+                click: function (e) {
+                    const stateCode = e.target.feature.properties.STUSPS;
+                    map.fitBounds(e.target.getBounds());
+                    loadCountyLayer(stateCode);
+                }
+            });
+        }
+
+        // Layer loading functions
+        function loadStateLayer() {
+            stateLayer = new L.GeoJSON.AJAX("assets/GV_States.geojson", {
+                style: stateStyle,
+                onEachFeature: onEachState
+            }).addTo(map);
+        }
+
+        function loadCountyLayer(stateCode) {
+            if (countyLayer) map.removeLayer(countyLayer);
+            countyLayer = new L.GeoJSON.AJAX("assets/GV_Counties_simp.json", {
+                style: countyStyle,
+                onEachFeature: onEachCounty,
+                filter: feature => feature.properties.STUSPS === stateCode
+            }).addTo(map);
+        }
+
+        // Reset functionality
+        function resetMap() {
+            if (countyLayer) map.removeLayer(countyLayer);
+            map.setView(initialView.center, initialView.zoom);
+        }
+
+        // Initial load
+        loadStateLayer();
+    </script>
+</body>
+
+</html>
